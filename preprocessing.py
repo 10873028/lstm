@@ -12,12 +12,12 @@ class StandardScaler:
     def inverse_transform(self, data):
         return data * self.std + self.mean
 
-    
+
 def CreateMatrix(data, timesteps):
     x, y = [], []
     for i in range(timesteps, data.shape[0]):
-        x.append(data[i - timesteps:i])
-        y.append(data[i])
+        x.append(data[i-timesteps:i])
+        y.append(data[i-timesteps+1:i+1])
     return np.array(x), np.array(y)
 
 

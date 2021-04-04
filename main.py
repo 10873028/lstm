@@ -11,8 +11,8 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(device)
 
 timesteps = 90
-batch_size = 512
-epochs = 100
+batch_size = 2048
+epochs = 1000
 df = pd.read_csv('bdi.csv').fillna(method='ffill')
 data = df['bdi'].values
 x, y = CreateMatrix(data, timesteps)
@@ -20,26 +20,25 @@ x_train, y_train, x_val, y_val, x_test, y_test = Split(x, y)
 
 scaler = StandardScaler(y_train)
 x_train = scaler.transform(x_train)
-y_train = scaler.transform(y_train).reshape(-1, 1)
+y_train = scaler.transform(y_train)
 x_val = scaler.transform(x_val)
-y_val = scaler.transform(y_val).reshape(-1, 1)
+y_val = scaler.transform(y_val)
 x_test = scaler.transform(x_test)
-y_test = y_test.reshape(-1, 1)
 print(x_train.shape, y_train.shape, x_val.shape, y_val.shape, x_test.shape, y_test.shape)
 
-#%%
 x_train = torch.FloatTensor(x_train).to(device)
 y_train = torch.FloatTensor(y_train).to(device)
 x_val = torch.FloatTensor(x_val).to(device)
 y_val = torch.FloatTensor(y_val).to(device)
 x_test = torch.FloatTensor(x_test).to(device)
+y_test = y_test[:, -1:]
 
 dataset = Data.TensorDataset(x_train, y_train)
 dataloader = Data.DataLoader(dataset=dataset, batch_size=batch_size)
 
 model = Net().to(device)
 criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+optimizer = torch.optim.Adam(model.parameters(), lr=5e-4, weight_decay=1e-4)
 
 history = {'loss': [], 'val_loss': []}
 best_model = np.inf
@@ -67,7 +66,7 @@ for epoch in range(epochs):
 model = torch.load('checkpoint.pt')
 model.eval()
 with torch.no_grad():
-    pred = model(x_test)
+    pred = model(x_test)[:, -1:]
     pred = pred.cpu().numpy()
     pred = scaler.inverse_transform(pred)
 plt.plot(y_test, label='actual')
@@ -80,15 +79,3 @@ plt.legend()
 plt.show()
 print(metrics.mean_absolute_error(pred, y_test))
 
-#%%
-start = 0
-future = 749
-tmp = x_test[start].unsqueeze(dim=0)
-model.eval()
-with torch.no_grad():
-    pred = model(tmp, future=future).cpu().numpy().reshape(-1, 1)
-    pred = scaler.inverse_transform(pred)
-plt.plot(y_test)
-plt.plot(pred)
-plt.show()
-print(metrics.mean_absolute_error(y_test, pred))
